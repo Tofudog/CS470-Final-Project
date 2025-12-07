@@ -75,7 +75,7 @@ def DBScan(datafile, eps, minSamp, out):
     	#mark current point as visited
     	visited[i] = True
 
-    	nHood = neighbors[i]
+    	nHood = list(neighbors[i])
 
     	#leave points with unpopulated neighborhoods unchanged
     	if(len(nHood) < minSamp): continue
@@ -83,17 +83,31 @@ def DBScan(datafile, eps, minSamp, out):
     	#we have a cluster!
     	df.iloc[i]["Cluster"] = curCluster
 
-    	neighbor_stack = list(nHood)
+    	neighbor_stack = nHood
 
     	while neighbor_stack:
     		i = stack.pop()
 
     		if not visited[i]:
     			visited[i] = True
-    			nHood = neighbors[i]
+    			nHood = list(neighbors[i])
 
+    			if len(nHood) >= minSamp:
+    				neighbor_stack.extend(nHood)
+
+    		df.iloc[i]["Cluster"] = curCluster
+
+    	curCluster += 1
 
     print(f"Algorithm Complete, outputting to {out}")
+
+    #resort as it was before, drop indices, and save
+    df = df.sort_values(by='index')
+    df = df.drop(['index'], axis=1)
+
+    df.to_csv(out, index=False)
+
+    return df["Cluster"]
 
 
 if __name__ == "__main__":
