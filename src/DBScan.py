@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import random
+from collections import deque
 from sklearn.neighbors import BallTree
 
 
@@ -9,101 +10,91 @@ from sklearn.neighbors import BallTree
 def main():
 
 	# set up the program to take in arguments from the command line
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--data",
-                        default="../data/earthquakes.csv",
-                        help="filename for data")
-    parser.add_argument("-e", "--epsilon",
-    					type=float,
-                        default=500.0,
-                        help="neighborhood radius (in km)")
-    parser.add_argument("-m", "--minSamples",
-    					type=int,
-                        default=5,
-                        help="minimum number of samples to trigger extension of cluster")
-    parser.add_argument('-o', '--output',
-                        help="file to store output of clustering in")
-    
-    args = parser.parse_args()
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-d", "--data",
+						default="../data/earthquakes.csv",
+						help="filename for data")
+	parser.add_argument("-e", "--epsilon",
+						type=float,
+						default=500.0,
+						help="neighborhood radius (in km)")
+	parser.add_argument("-m", "--minSamples",
+						type=int,
+						default=5,
+						help="minimum number of samples to trigger extension of cluster")
+	parser.add_argument('-o', '--output',
+						help="file to store output of clustering in")
+	
+	args = parser.parse_args()
 
-    DBScan(args.data, args.epsilon, args.minSamples, f"../data/{args.output}")
+	DBScan(args.data, args.epsilon, args.minSamples, f"../data/{args.output}")
 
 def DBScan(datafile, eps, minSamp, out=None):
-    # load the dataset
-    df = pd.read_csv(datafile, index_col=False)
-    numRows = len(df)
+	df = pd.read_csv(datafile)
 
-    #define tuple (Latitude, Longitude) for each entry in dataset
-    df["Location"] = df[['Latitude', 'Longitude']].apply(tuple, axis=1)
-    df = df.drop(["Latitude", 'Longitude'], axis=1)
+	coords = df[['Latitude','Longitude']].to_numpy()
+	coords_rad = np.radians(coords)
+	N = len(coords_rad)
 
-    #shuffle dataset, to avoid always classify border points the same way
-    df = df.sample(frac=1).reset_index(drop=True) #reset indices
+	visited = np.zeros(N, dtype=bool)
+	labels  = np.full(N, -1, dtype=int)
+	core    = np.zeros(N, dtype=bool)
 
-    #define a cluster column, initializing each row as an outlier
-    df["Cluster"] = -1
+	tree = BallTree(coords_rad, metric='haversine')
+	eps_rad = eps / 6371.0
+	neighbors = tree.query_radius(coords_rad, eps_rad)
 
-    #convert longitude/latitude from degrees to radians
-    locs = np.array(df["Location"].tolist(), dtype=float)
-    locs_rad = np.radians(locs)
+	# Determine core points
+	for i in range(N):
+		if len(neighbors[i]) >= minSamp:
+			core[i] = True
 
-    #build a BallTree to efficiently find neighbors
-    tree = BallTree(locs_rad, metric='haversine')
+	cluster_id = 1
 
-    #convert eps into radians (km = radians * earth-radius) (radians = km/earth-radius)
-    eps_rad = eps / 6371.0
+	for i in range(N):
 
-    #get neighbors for each point
-    neighbors = tree.query_radius(locs_rad, r=eps_rad)
+		if visited[i]:
+			continue
 
-    #define a dictionary for points to tell if we visited them
-    visited = {pointIndex: False for pointIndex in df.index.tolist()}
+		visited[i] = True
 
-    #start cluster counter at 1
-    curCluster = 1
-    print("Looking for cluster 1...")
+		if not core[i]:
+			labels[i] = -1
+			continue
 
-    for i in visited:
+		# start new cluster
+		labels[i] = cluster_id
+		queue = deque(neighbors[i])
 
-    	#skip already visited points
-    	if visited[i]: continue 
+		#auxilary structure to efficiently track membership to queue
+		in_queue = np.zeros(N, dtype=bool)
+		in_queue[neighbors[i]] = True
 
-    	#mark current point as visited
-    	visited[i] = True
+		while queue:
+			pt = queue.popleft()
 
-    	nHood = list(neighbors[i])
+			if not visited[pt]:
+				visited[pt] = True
 
-    	#leave points with unpopulated neighborhoods unchanged
-    	if(len(nHood) < minSamp): continue
+				if core[pt]:
+					pt_neighbors = neighbors[pt]
 
-    	#we have a cluster!
-    	df.loc[i, "Cluster"] = curCluster
+					# expand cluster
+					new_pts = pt_neighbors[~in_queue[pt_neighbors]]
+					queue.extend(new_pts)
+					in_queue[new_pts] = True
 
-    	neighbor_stack = nHood
+			# assign border points
+			if labels[pt] == -1:
+				labels[pt] = cluster_id
 
-    	while neighbor_stack:
-    		i = neighbor_stack.pop()
+		cluster_id += 1
 
-    		if not visited[i]:
-    			visited[i] = True
-    			nHood = list(neighbors[i])
+	df["Cluster"] = labels
+	if out:
+		df.to_csv(out, index=False)
 
-    			if len(nHood) >= minSamp:
-    				for j in nHood:
-    					if not visited[j]: neighbor_stack.append(j)
-
-    		df.loc[i, "Cluster"] = curCluster
-
-    	curCluster += 1
-    	print(f"Cluster {curCluster-1} complete. Looking for cluster {curCluster}...")
-
-
-    print(f"Algorithm Complete, outputting to {out}")
-
-    df.to_csv(out, index=False)
-
-    return df["Cluster"]
-
+	return labels
 
 if __name__ == "__main__":
-    main()
+	main()
