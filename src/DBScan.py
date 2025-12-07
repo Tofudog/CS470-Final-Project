@@ -93,7 +93,8 @@ def DBScan(datafile, eps, minSamp, out):
     			nHood = list(neighbors[i])
 
     			if len(nHood) >= minSamp:
-    				neighbor_stack.extend(nHood)
+    				for j in nHood:
+    					if not visited[j]: neighbor_stack.append(j)
 
     		df.loc[i, "Cluster"] = curCluster
 
