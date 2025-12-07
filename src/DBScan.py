@@ -1,7 +1,6 @@
 import argparse
 import numpy as np
 import pandas as pd
-import haversine as hs
 import random
 from sklearn.neighbors import BallTree
 
@@ -27,12 +26,9 @@ def main():
     
     args = parser.parse_args()
 
-    DBScan(args.data, args.epsilon, args.minSamples, args.output)
+    DBScan(args.data, args.epsilon, args.minSamples, f"../data/{args.output}")
 
-#REF: distance_km 	 = hs.haversine(loc1, loc2)
-#	  distance_miles = hs.haversine(loc1, loc2, unit=hs.Unit.MILES)
-
-def DBScan(datafile, eps, minSamp, out):
+def DBScan(datafile, eps, minSamp, out=None):
     # load the dataset
     df = pd.read_csv(datafile, index_col=False)
     numRows = len(df)
@@ -54,7 +50,7 @@ def DBScan(datafile, eps, minSamp, out):
     #build a BallTree to efficiently find neighbors
     tree = BallTree(locs_rad, metric='haversine')
 
-    #convert eps into radians (km = radians * earth-radius)
+    #convert eps into radians (km = radians * earth-radius) (radians = km/earth-radius)
     eps_rad = eps / 6371.0
 
     #get neighbors for each point
@@ -99,7 +95,7 @@ def DBScan(datafile, eps, minSamp, out):
     		df.loc[i, "Cluster"] = curCluster
 
     	curCluster += 1
-    	print(f"Cluster {curCluster-1} complete. Looking for cluster {curCluster+1}...")
+    	print(f"Cluster {curCluster-1} complete. Looking for cluster {curCluster}...")
 
 
     print(f"Algorithm Complete, outputting to {out}")
