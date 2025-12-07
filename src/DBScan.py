@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import haversine as hs
 import random
+from sklearn.neighbors import BallTree
 
 
 #this program takes a file and uses DBScan algorithm to cluster around latitudinal and longitudinal data
@@ -14,8 +15,8 @@ def main():
                         default="../data/earthquakes.csv",
                         help="filename for data")
     parser.add_argument("-e", "--epsilon",
-    					type=int,
-                        default=500,
+    					type=float,
+                        default=500.0,
                         help="neighborhood radius (in km)")
     parser.add_argument("-m", "--minSamples",
     					type=int,
@@ -42,43 +43,57 @@ def DBScan(datafile, eps, minSamp, out):
 
     #shuffle dataset, to avoid always classify border points the same way
     df = df.sample(frac=1)
+    df = df.reset_index(drop=False) #reset indices
 
     #define a cluster column, initializing each row as an outlier
     df["Cluster"] = -1
 
-    #define an empty set for checked points 
-    checkedPts = set()
+    #convert longitude/latitude from degrees to radians
+    locs = np.array(df["Location"])
+    locs_rad = np.radians(locs)
 
-    #define a set that contains the index of each unchecked point (at start, all points)
-    uncheckedPts = set(df.index.tolist())
+    #build a BallTree to efficiently find neighbors
+    tree = BallTree(locs_rad, metric='haversine')
+
+    #convert eps into radians (km = radians * earth-radius)
+    eps_rad = eps / 6,371
+
+    #get neighbors for each point
+    neighbors = tree.query_radius(locs_rad, r=eps_rad)
+
+    #define a dictionary for points to tell if we visited them
+    visited = {pointIndex: False for pointIndex in df.index.tolist()}
 
     #start cluster counter at 1
     curCluster = 1
-    neighborhood = set()
-    curPoint = uncheckedPts.pop()
 
-    while(len(uncheckedPts) != 0):
-	    #choose a point to begin DBScan algorithm
+    for i in visited:
+
+    	#skip already visited points
+    	if visited[i]: continue 
+
+    	#mark current point as visited
+    	visited[i] = True
+
+    	nHood = neighbors[i]
+
+    	#leave points with unpopulated neighborhoods unchanged
+    	if(len(nHood) < minSamp): continue
+
+    	#we have a cluster!
+    	df.iloc[i]["Cluster"] = curCluster
+
+    	neighbor_stack = list(nHood)
+
+    	while neighbor_stack:
+    		i = stack.pop()
+
+    		if not visited[i]:
+    			visited[i] = True
+    			nHood = neighbors[i]
 
 
-	    if curPoint in checkedPts: #point has been checked before
-	    	#make sure they aren't still in unchecked list
-    		uncheckedPts.discard(curPoint)
-
-    		#set to check next point in neighborhood
-	    	if len(neighborhood != 0):
-	    		curPoint = neighborhood.pop()
-	    		continue
-
-	    	#neighborhood is empty, select any new point to continue
-	    	curPoint = uncheckedPts.pop()
-
-	    checkedPts.add(curPoint)
-
-	    for i in range(numRows):
-	    	if(i <)
-
-    print(df)
+    print(f"Algorithm Complete, outputting to {out}")
 
 
 if __name__ == "__main__":
