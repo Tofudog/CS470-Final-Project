@@ -10,6 +10,6 @@ This is a public repository containing the code and relevant files for our CS470
 6. Run all the cells
 
 ### Presentation
-The dataset we used is from Kaggle: https://www.kaggle.com/datasets/shreyasur965/recent-earthquakes/data
+The dataset we used is from Kaggle: https://www.kaggle.com/datasets/usgs/earthquake-database
 
-Our presentation can be viewed from here: ...
+Our presentation can be viewed from here: https://drive.google.com/drive/folders/1Q_A0Znd91lDSs7E3O1P3Z7BWP3AJTmv6?usp=sharing
