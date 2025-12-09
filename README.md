@@ -12,4 +12,6 @@ This is a public repository containing the code and relevant files for our CS470
 ### Presentation
 The dataset we used is from Kaggle: https://www.kaggle.com/datasets/usgs/earthquake-database
 
+The dataset we used for mapping the fault lines is from the following Github repository: https://github.com/GEMScienceTools/gem-global-active-faults/tree/master/geojson
+
 Our presentation can be viewed from here: https://drive.google.com/drive/folders/1Q_A0Znd91lDSs7E3O1P3Z7BWP3AJTmv6?usp=sharing
